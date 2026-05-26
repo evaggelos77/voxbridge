@@ -93,6 +93,7 @@ const I18N = {
     connecting: "Σύνδεση…",
     connected: "Συνδεδεμένος",
     disconnected: "Αποσυνδεδεμένος",
+    no_credits_short: "Τελείωσαν τα credits — αγόρασε πακέτο.",
     call_in_bar: (room) => `Σε κλήση: ${room}`,
     remote_prefs: (inLang, outLang) => `Ο άλλος: ακούει ${inLang} · στέλνει ${outLang}`,
     call_partner: "Συνομιλητής",
@@ -205,6 +206,7 @@ const I18N = {
     connecting: "Connecting…",
     connected: "Connected",
     disconnected: "Disconnected",
+    no_credits_short: "Out of credits — buy a package.",
     call_in_bar: (room) => `In call: ${room}`,
     remote_prefs: (inLang, outLang) => `Partner: hears ${inLang} · sends ${outLang}`,
     call_partner: "Partner",
@@ -639,10 +641,22 @@ async function postForm(endpoint, fileBlob, filename, fields={}){
     if(resp.status === 401){
       throw new Error("AUTH_REQUIRED");
     }
+    if(resp.status === 402 || (data && data.code === "NO_CREDITS")){
+      if(data && typeof data.credits === "number") updateCreditsDisplay(data.credits);
+      throw new Error("NO_CREDITS");
+    }
     // Never surface technical details to end users.
     throw new Error(FRIENDLY_AUDIO_ERROR);
   }
   return data;
+}
+
+function updateCreditsDisplay(n){
+  if(typeof n !== "number" || isNaN(n)) return;
+  const el = $("#creditsTop");
+  if(el){ el.textContent = "💳 " + n; el.hidden = false; }
+  const s = $("#creditsSettings");
+  if(s) s.textContent = String(n);
 }
 
 // ---------- Languages ----------
@@ -1703,10 +1717,14 @@ async function startRecording(context){
       try{
         const filename = `ptt${fileExtFromMime(mime)}`;
         const meta = await postForm(context.endpoint, blob, filename, context.fields());
+        if(meta && typeof meta.credits === "number") updateCreditsDisplay(meta.credits);
         await context.onSuccess(meta);
       }catch(err){
-        if(String(err?.message || '') === 'AUTH_REQUIRED'){
+        const _m = String(err?.message || '');
+        if(_m === 'AUTH_REQUIRED'){
           context.setStatus(t('auth_required'));
+        }else if(_m === 'NO_CREDITS'){
+          context.setStatus(t('no_credits_short'));
         }else{
           // Always the same friendly message for audio/translation failures.
           context.setStatus(FRIENDLY_AUDIO_ERROR);
@@ -1759,6 +1777,7 @@ async function translateFile(){
 
   try{
     const meta = await postForm("/api/file", f, f.name, {target_lang: target});
+    if(meta && typeof meta.credits === "number") updateCreditsDisplay(meta.credits);
     const url = meta.mp3_url;
 
     const player = $("#filePlayer");
@@ -1775,8 +1794,12 @@ async function translateFile(){
 
     $("#fileShare").onclick = () => shareLink("VoxBridge", location.origin + url);
     $("#fileShare").disabled = false;
-  }catch{
-    setFileStatus(FRIENDLY_AUDIO_ERROR);
+  }catch(err){
+    if(String(err?.message || '') === 'NO_CREDITS'){
+      setFileStatus(t('no_credits_short'));
+    }else{
+      setFileStatus(FRIENDLY_AUDIO_ERROR);
+    }
   }finally{
     btn.disabled = false;
   }
@@ -2198,6 +2221,7 @@ async function init(){
     const me = await r.json().catch(() => ({}));
     const email = (me && me.email) ? String(me.email) : '';
     if($('#userEmail')) $('#userEmail').textContent = email || '—';
+    if(me && typeof me.credits === 'number') updateCreditsDisplay(me.credits);
     if($('#userEmailTop')){
       if(email){
         $('#userEmailTop').textContent = email;

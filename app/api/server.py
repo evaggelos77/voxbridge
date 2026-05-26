@@ -64,6 +64,13 @@ AUTH_REQUIRED_CODE = "AUTH_REQUIRED"
 # Default target when user doesn't choose one (can be overridden via env)
 DEFAULT_TARGET_LANG = (os.getenv("DEFAULT_TARGET_LANG", "en") or "en").strip()
 
+# -------------------------
+# Usage credits (cost protection)
+# 1 credit = 1 translation. New users get FREE_TRIAL_CREDITS free, then must buy a
+# package (Stripe) to top up. This caps the app owner's OpenAI bill.
+# -------------------------
+FREE_TRIAL_CREDITS = int((os.getenv("FREE_TRIAL_CREDITS", "15") or "15").strip() or "15")
+
 # ---------- Paths ----------
 APP_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 MEDIA_DIR = os.path.join(APP_DIR, "web_media")
@@ -400,16 +407,23 @@ def _init_db() -> None:
     con = _db()
     try:
         con.execute(
-            """
+            f"""
             CREATE TABLE IF NOT EXISTS users (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               email TEXT NOT NULL UNIQUE,
               password_hash TEXT,
               google_sub TEXT UNIQUE,
-              created_at TEXT NOT NULL
+              created_at TEXT NOT NULL,
+              credits INTEGER NOT NULL DEFAULT {FREE_TRIAL_CREDITS}
             )
             """
         )
+        # Migration: add 'credits' to pre-existing databases that predate this column.
+        _cols = [r[1] for r in con.execute("PRAGMA table_info(users)").fetchall()]
+        if "credits" not in _cols:
+            con.execute(
+                f"ALTER TABLE users ADD COLUMN credits INTEGER NOT NULL DEFAULT {FREE_TRIAL_CREDITS}"
+            )
         con.commit()
     finally:
         con.close()
@@ -482,8 +496,8 @@ def _create_user_password(email: str, password: str) -> sqlite3.Row:
         created = _now_iso()
         pw_hash = _hash_password(password)
         con.execute(
-            "INSERT INTO users (email, password_hash, created_at) VALUES (?,?,?)",
-            (email.strip(), pw_hash, created),
+            "INSERT INTO users (email, password_hash, created_at, credits) VALUES (?,?,?,?)",
+            (email.strip(), pw_hash, created, FREE_TRIAL_CREDITS),
         )
         con.commit()
         cur = con.execute("SELECT * FROM users WHERE lower(email)=lower(?)", (email.strip(),))
@@ -516,8 +530,8 @@ def _upsert_user_google(email: str, sub: str) -> sqlite3.Row:
 
         created = _now_iso()
         con.execute(
-            "INSERT INTO users (email, google_sub, created_at) VALUES (?,?,?)",
-            (email, sub, created),
+            "INSERT INTO users (email, google_sub, created_at, credits) VALUES (?,?,?,?)",
+            (email, sub, created, FREE_TRIAL_CREDITS),
         )
         con.commit()
         cur = con.execute("SELECT * FROM users WHERE google_sub=?", (sub,))
@@ -526,6 +540,62 @@ def _upsert_user_google(email: str, sub: str) -> sqlite3.Row:
         return row
     finally:
         con.close()
+
+
+# -------------------------
+# Usage credits helpers
+# -------------------------
+def _get_credits(user_id: int) -> int:
+    con = _db()
+    try:
+        cur = con.execute("SELECT credits FROM users WHERE id=?", (int(user_id),))
+        row = cur.fetchone()
+        return int(row["credits"]) if row and row["credits"] is not None else 0
+    finally:
+        con.close()
+
+
+def _spend_credit(user_id: int, n: int = 1) -> int:
+    """Decrement credits (never below 0). Returns the new balance."""
+    con = _db()
+    try:
+        con.execute(
+            "UPDATE users SET credits = MAX(credits - ?, 0) WHERE id=?",
+            (int(n), int(user_id)),
+        )
+        con.commit()
+        cur = con.execute("SELECT credits FROM users WHERE id=?", (int(user_id),))
+        row = cur.fetchone()
+        return int(row["credits"]) if row and row["credits"] is not None else 0
+    finally:
+        con.close()
+
+
+def _add_credits(user_id: int, n: int) -> int:
+    """Add credits (used by Stripe top-ups). Returns the new balance."""
+    con = _db()
+    try:
+        con.execute(
+            "UPDATE users SET credits = credits + ? WHERE id=?",
+            (int(n), int(user_id)),
+        )
+        con.commit()
+        cur = con.execute("SELECT credits FROM users WHERE id=?", (int(user_id),))
+        row = cur.fetchone()
+        return int(row["credits"]) if row and row["credits"] is not None else 0
+    finally:
+        con.close()
+
+
+def _no_credits() -> JSONResponse:
+    return JSONResponse(
+        status_code=402,
+        content={
+            "error": "Τελείωσαν τα credits σου. Αγόρασε πακέτο για να συνεχίσεις.",
+            "code": "NO_CREDITS",
+            "credits": 0,
+        },
+    )
 
 
 # -------------------------
@@ -561,7 +631,7 @@ def api_me(request: Request):
     u = _current_user(request)
     if not u:
         return _auth_required()
-    return {"email": u["email"], "created_at": u["created_at"]}
+    return {"email": u["email"], "created_at": u["created_at"], "credits": int(u["credits"] or 0)}
 
 
 @app.get("/api/config")
@@ -783,10 +853,13 @@ async def api_ptt_translate(
     speak_lang: Optional[str] = Form(None),
     debug_save: Optional[str] = Form(None),
 ):
-    if not _current_user(request):
+    u = _current_user(request)
+    if not u:
         return _auth_required()
     if not os.getenv("OPENAI_API_KEY"):
         return _ui_error(status_code=400)
+    if int(u["credits"] or 0) <= 0:
+        return _no_credits()
 
     suffix = os.path.splitext(file.filename or "")[1] or ".wav"
     tmp_in = os.path.join(tempfile.gettempdir(), f"vb_in_{uuid.uuid4().hex}{suffix}")
@@ -803,6 +876,7 @@ async def api_ptt_translate(
         )
         meta["mode"] = "ptt"
         _append_history(meta)
+        meta["credits"] = _spend_credit(u["id"], 1)
         return JSONResponse(meta)
     except Exception:
         _log_exc("/api/ptt")
@@ -824,10 +898,13 @@ async def api_call_captions(
     debug_save: Optional[str] = Form(None),
 ):
     """Online Call v2: captions only (no TTS)."""
-    if not _current_user(request):
+    u = _current_user(request)
+    if not u:
         return _auth_required()
     if not os.getenv("OPENAI_API_KEY"):
         return _ui_error(status_code=400)
+    if int(u["credits"] or 0) <= 0:
+        return _no_credits()
 
     suffix = os.path.splitext(file.filename or "")[1] or ".wav"
     tmp_in = os.path.join(tempfile.gettempdir(), f"vb_call_{uuid.uuid4().hex}{suffix}")
@@ -845,6 +922,7 @@ async def api_call_captions(
         meta["mode"] = "call_captions"
         if room:
             meta["room"] = room
+        meta["credits"] = _spend_credit(u["id"], 1)
         return JSONResponse(meta)
     except Exception:
         _log_exc("/api/call/captions")
@@ -863,10 +941,13 @@ async def api_file_translate(
     target_lang: Optional[str] = Form(None),
     speak_lang: Optional[str] = Form(None),
 ):
-    if not _current_user(request):
+    u = _current_user(request)
+    if not u:
         return _auth_required()
     if not os.getenv("OPENAI_API_KEY"):
         return _ui_error(status_code=400)
+    if int(u["credits"] or 0) <= 0:
+        return _no_credits()
 
     suffix = os.path.splitext(file.filename or "")[1] or ".wav"
     tmp_in = os.path.join(tempfile.gettempdir(), f"vb_file_{uuid.uuid4().hex}{suffix}")
@@ -878,6 +959,7 @@ async def api_file_translate(
         meta["mode"] = "file"
         meta["original_name"] = file.filename or "audio"
         _append_history(meta)
+        meta["credits"] = _spend_credit(u["id"], 1)
         return JSONResponse(meta)
     except Exception:
         _log_exc("/api/file")

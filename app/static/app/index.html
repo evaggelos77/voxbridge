@@ -29,6 +29,8 @@
 
       <!-- Logged-in user email (visible on every view) -->
       <div id="userEmailTop" class="user-pill" hidden>—</div>
+      <!-- Remaining usage credits (1 credit = 1 translation) -->
+      <div id="creditsTop" class="user-pill" hidden title="Credits (μεταφράσεις που απομένουν)">💳 —</div>
 
       <nav>
         <button class="nav-btn" data-view="live" data-i18n="nav_live">Interpreter</button>
@@ -358,6 +360,10 @@
           <button id="logoutBtn" class="btn danger" type="button" data-i18n="logout">Logout</button>
         </div>
 
+        <div style="margin-top:16px" class="small">
+          Credits (μεταφράσεις που απομένουν): <strong id="creditsSettings">—</strong>
+        </div>
+
         <div style="margin-top:16px" class="small" data-i18n="languages_note">
           Translation supports any language you can type. Choose from the list or select “Other…” to type a language name/code.
         </div>
@@ -378,6 +384,6 @@
 
   <div id="toast" class="toast" hidden></div>
 
-  <script src="/static/app/app.js?v=2"></script>
+  <script src="/static/app/app.js?v=3"></script>
 </body>
 </html>
