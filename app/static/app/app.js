@@ -985,7 +985,16 @@ function _safeUrlFromBase(base){
 }
 
 function callInviteLink(room){
-  // 1) Prefer a configured public URL for link sharing (prevents localhost links).
+  // 1) If already running on a real (non-localhost) origin, the current origin is
+  //    ALWAYS the correct address to share — use it. This also ignores any stale/wrong
+  //    PUBLIC_BASE_URL configured on the server (e.g. pointing to a different app).
+  const h = String(location.hostname || "").toLowerCase();
+  const isLocal = (h === "localhost" || h === "127.0.0.1" || h === "::1" || h === "[::1]");
+  if(!isLocal){
+    return callLink(room);
+  }
+
+  // 2) Localhost only: prefer a configured public URL for link sharing (prevents localhost links).
   const base = (state.publicBaseUrl || "").trim();
   if(base){
     const u = _safeUrlFromBase(base);
@@ -998,13 +1007,6 @@ function callInviteLink(room){
     u.searchParams.set("room", room);
     u.hash = "#call";
     return u.toString();
-  }
-
-  // 2) If already running on a non-localhost origin (domain, LAN, etc.), we can share the current origin.
-  const h = String(location.hostname || "").toLowerCase();
-  const isLocal = (h === "localhost" || h === "127.0.0.1" || h === "::1" || h === "[::1]");
-  if(!isLocal){
-    return callLink(room);
   }
 
   // 3) Localhost origin: best-effort LAN link (same Wi‑Fi/LAN) if the server provides it.
