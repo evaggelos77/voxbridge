@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: voxbridge
+    runtime: python
+    plan: starter
+    rootDir: app
+    # single worker on purpose — WebRTC signaling rooms are in-memory
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn api.server:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips '*'
+    autoDeploy: true
+    disk:
+      name: voxbridge-data
+      # web_media/ holds users.sqlite3 + history.json + mp3s — must persist
+      mountPath: /opt/render/project/src/app/web_media
+      sizeGB: 1
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
+      - key: OPENAI_TTS_VOICE
+        value: cedar
+      - key: OPENAI_STT_MODEL
+        value: gpt-4o-mini-transcribe
+      - key: OPENAI_TTS_MODEL
+        value: gpt-4o-mini-tts
+      - key: OPENAI_TRANSLATE_MODEL
+        value: gpt-5-mini

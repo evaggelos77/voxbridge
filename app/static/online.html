@@ -1,0 +1,114 @@
+
+<!doctype html><html lang="el"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Online Διερμηνέας</title>
+<style>
+body{margin:0;font-family:system-ui,Segoe UI,Roboto,Arial;background:#0b1220;color:#e5e7eb}
+.wrap{max-width:920px;margin:0 auto;padding:22px}
+.card{background:#0f172a;border:1px solid #1f2937;border-radius:14px;padding:16px;margin:14px 0}
+h1{margin:0 0 10px 0;font-size:22px}
+label{display:block;margin:10px 0 6px 0}
+input{width:100%;padding:12px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#e5e7eb}
+button{padding:12px 14px;border-radius:12px;border:0;background:#3b82f6;color:white;font-weight:800;cursor:pointer}
+button.secondary{background:#475569}
+.note{opacity:.9;font-size:13px;line-height:1.4}
+.pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#0b1220;border:1px solid #334155;font-size:12px}
+.row{display:flex;gap:12px;flex-wrap:wrap}.row>*{flex:1}
+</style></head><body><div class="wrap">
+<h1>VoxBridge — Online Διερμηνέας (Push‑to‑Talk)</h1>
+<div class="note">
+v0 online: πατάς «Μίλα», στέλνει 2–6'' ήχο στον server, παίρνει MP3 μετάφρασης και το στέλνει στον άλλον μέσω room.<br>
+Για χρήση από άλλη πόλη/χώρα θα χρειαστεί port-forward ή tunnel. Για LAN αρκεί το IP του υπολογιστή.
+</div>
+
+<div class="card">
+<div class="row">
+<div><label>Room ID</label><input id="room" placeholder="π.χ. ev-1234"/></div>
+<div><label>Το όνομά σου</label><input id="name" placeholder="π.χ. Evangelos"/></div>
+</div>
+<label>Γλώσσα εξόδου</label><select id="target" style="width:100%;padding:12px;border-radius:10px;border:1px solid #334155;background:#0b1220;color:#e5e7eb"><option value="">Auto</option><option value="en">Αγγλικά</option><option value="zh">Κινέζικα</option><option value="ar">Αραβικά</option><option value="el">Ελληνικά</option></select><div class="row" style="margin-top:12px">
+<button id="join">Σύνδεση</button>
+<button id="new" class="secondary">Νέο Room</button>
+</div>
+<div class="note" style="margin-top:10px">Auto γλώσσα: Ελληνικά → Αγγλικά, και EN/ZH/AR → Ελληνικά.</div>
+</div>
+
+<div class="card">
+<div class="row">
+<button id="talk" disabled>🎤 Κράτα πατημένο για να μιλήσεις</button>
+<button id="playLocal" class="secondary" disabled>🔊 Play local: ON</button>
+</div>
+<div style="margin-top:10px"><span class="pill" id="status">Status: OFF</span></div>
+<div id="log" class="note" style="margin-top:10px;white-space:pre-wrap"></div>
+</div>
+
+</div>
+<script>
+let ws=null, playLocal=true, mediaRecorder=null, chunks=[];
+function log(m){const el=document.getElementById('log'); el.textContent=(m+"\\n"+el.textContent).slice(0,4000);}
+function randRoom(){return "ev-"+Math.floor(1000+Math.random()*9000);}
+async function ensureMic(){const s=await navigator.mediaDevices.getUserMedia({audio:true}); s.getTracks().forEach(t=>t.stop());}
+function wsUrl(room){const proto=location.protocol==="https:"?"wss":"ws"; return `${proto}://${location.host}/ws/${encodeURIComponent(room)}`;}
+async function connect(){
+  const room=document.getElementById('room').value.trim();
+  const name=document.getElementById('name').value.trim()||"User";
+  if(!room){alert("Βάλε Room ID");return;}
+  await ensureMic();
+  ws=new WebSocket(wsUrl(room));
+  ws.onopen=()=>{
+    document.getElementById('status').textContent="Status: ON (room "+room+")";
+    document.getElementById('talk').disabled=false;
+    document.getElementById('playLocal').disabled=false;
+    ws.send(JSON.stringify({type:"hello", name}));
+    log("Συνδέθηκες στο room: "+room);
+  };
+  ws.onmessage=(ev)=>{
+    const data=JSON.parse(ev.data);
+    if(data.type==="audio"){
+      const bytes=Uint8Array.from(atob(data.mp3_b64), c=>c.charCodeAt(0));
+      const url=URL.createObjectURL(new Blob([bytes],{type:"audio/mpeg"}));
+      new Audio(url).play();
+      log("Έλαβες μετάφραση.");
+    } else if(data.type==="info"){ log(data.message); }
+  };
+  ws.onclose=()=>{
+    document.getElementById('status').textContent="Status: OFF";
+    document.getElementById('talk').disabled=true;
+    document.getElementById('playLocal').disabled=true;
+    log("Αποσυνδέθηκες.");
+  };
+}
+
+async function startRec(){
+  if(!ws||ws.readyState!==1) return;
+  chunks=[];
+  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+  mediaRecorder=new MediaRecorder(stream);
+  mediaRecorder.ondataavailable=(e)=>{if(e.data.size>0)chunks.push(e.data);};
+  mediaRecorder.onstop=async ()=>{
+    stream.getTracks().forEach(t=>t.stop());
+    const blob=new Blob(chunks,{type:mediaRecorder.mimeType});
+    const fd=new FormData(); fd.append("file", blob, "chunk.webm");
+    const tgt=document.getElementById("target").value;
+    if(tgt) fd.append("target_lang", tgt);
+
+    const resp=await fetch("/voice",{method:"POST",body:fd});
+    if(!resp.ok){const j=await resp.json().catch(()=>({error:"unknown"})); log("Σφάλμα: "+(j.error||resp.status)); return;}
+    const ab=await resp.arrayBuffer(); const mp3=new Uint8Array(ab);
+    if(playLocal){const url=URL.createObjectURL(new Blob([mp3],{type:"audio/mpeg"})); new Audio(url).play();}
+    const b64=btoa(String.fromCharCode(...mp3));
+    ws.send(JSON.stringify({type:"audio", mp3_b64:b64}));
+    log("Έστειλες μετάφραση.");
+  };
+  mediaRecorder.start();
+}
+function stopRec(){if(mediaRecorder&&mediaRecorder.state==="recording") mediaRecorder.stop();}
+
+document.getElementById('new').onclick=()=>{document.getElementById('room').value=randRoom();};
+document.getElementById('join').onclick=()=>connect();
+const talk=document.getElementById('talk');
+talk.onmousedown=()=>startRec(); talk.onmouseup=()=>stopRec(); talk.onmouseleave=()=>stopRec();
+talk.ontouchstart=(e)=>{e.preventDefault(); startRec();}; talk.ontouchend=(e)=>{e.preventDefault(); stopRec();};
+document.getElementById('playLocal').onclick=()=>{playLocal=!playLocal; document.getElementById('playLocal').textContent="🔊 Play local: "+(playLocal?"ON":"OFF");};
+document.getElementById('room').value=randRoom();
+</script></body></html>

@@ -1,0 +1,13 @@
+{
+  "backend_host": "127.0.0.1",
+  "backend_port": 8000,
+  "save_dir": "",
+  "default_target_lang": "en",
+  "pinned_langs": [
+    "el",
+    "en",
+    "zh",
+    "ar"
+  ],
+  "language_support": "all"
+}

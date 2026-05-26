@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="56" height="56" viewBox="0 0 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="g" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(28 28) rotate(90) scale(28)">
+      <stop offset="0" stop-color="#60A5FA" stop-opacity="0.9"/>
+      <stop offset="0.55" stop-color="#3B82F6" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#0B1220" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%" color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="2.6" result="b"/>
+      <feColorMatrix in="b" type="matrix" values="0 0 0 0 0.23  0 0 0 0 0.51  0 0 0 0 0.96  0 0 0 0.7 0" result="c"/>
+      <feMerge>
+        <feMergeNode in="c"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- soft aura -->
+  <circle cx="28" cy="28" r="26" fill="url(#g)"/>
+
+  <!-- neon ring -->
+  <circle cx="28" cy="28" r="21" stroke="#38BDF8" stroke-width="2.6" filter="url(#glow)"/>
+  <circle cx="28" cy="28" r="18.5" stroke="#1E40AF" stroke-opacity="0.45" stroke-width="2"/>
+
+  <!-- mic -->
+  <g filter="url(#glow)">
+    <path d="M28 15.2c-3.2 0-5.8 2.6-5.8 5.8v8.2c0 3.2 2.6 5.8 5.8 5.8s5.8-2.6 5.8-5.8V21c0-3.2-2.6-5.8-5.8-5.8Z" fill="#E5E7EB" fill-opacity="0.92"/>
+    <path d="M18.8 28.4a1.2 1.2 0 0 1 2.4 0c0 4 3.3 7.3 7.3 7.3s7.3-3.3 7.3-7.3a1.2 1.2 0 0 1 2.4 0c0 4.9-3.7 9-8.5 9.6v2.6h2.8a1.2 1.2 0 1 1 0 2.4H23.2a1.2 1.2 0 1 1 0-2.4H26V38c-4.8-.6-8.5-4.7-8.5-9.6Z" fill="#E5E7EB" fill-opacity="0.85"/>
+  </g>
+</svg>

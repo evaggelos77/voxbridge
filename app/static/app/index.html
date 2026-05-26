@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VoxBridge</title>
+  <link rel="icon" href="/static/app/assets/favicon.svg" />
+  <link rel="stylesheet" href="/static/app/app.css" />
+</head>
+
+<body>
+  <header class="topbar">
+    <a class="brand" href="#live" data-goto="live" aria-label="Go to Live">
+      <img class="logo" src="/static/app/assets/logo.svg" alt="VoxBridge logo" />
+      <div class="brand-stack">
+        <div class="brand-text">Vox<span class="neon">Bridge</span></div>
+        <div class="brand-tagline" id="brandTagline" data-i18n="tagline">—</div>
+      </div>
+    </a>
+
+    <div class="topbar-right">
+      <div class="ui-lang">
+        <span class="tiny" data-i18n="ui_language">UI language</span>
+        <select id="uiLang" aria-label="Application language">
+          <option value="el">Ελληνικά</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+
+      <!-- Logged-in user email (visible on every view) -->
+      <div id="userEmailTop" class="user-pill" hidden>—</div>
+
+      <nav>
+        <button class="nav-btn" data-view="live" data-i18n="nav_live">Interpreter</button>
+        <button class="nav-btn" data-view="call" data-i18n="nav_call">Online Call</button>
+        <button class="nav-btn" data-view="files" data-i18n="nav_files">Files</button>
+        <button class="nav-btn" data-view="history" data-i18n="nav_history">History</button>
+        <button class="nav-btn" data-view="account" data-i18n="nav_settings">Settings</button>
+      </nav>
+    </div>
+  </header>
+
+  <div class="rule"></div>
+
+  <!-- Persistent call indicator (does NOT auto-close; user ends it) -->
+  <div id="callBar" class="callbar hidden" role="status" aria-live="polite">
+    <div class="callbar-left">
+      <div class="pill" id="callBarPill">●</div>
+      <div class="callbar-text" id="callBarText">—</div>
+    </div>
+    <div class="callbar-actions">
+      <button id="callBarGo" class="btn secondary" type="button" data-i18n="call_return">Return to call</button>
+      <button id="callBarEnd" class="btn danger" type="button" data-i18n="call_end">End call</button>
+    </div>
+  </div>
+
+  <main class="container">
+    <!-- LIVE INTERPRETER -->
+    <section id="view-live" class="view active">
+      <div class="card">
+        <div class="row" style="align-items:flex-start;gap:12px">
+          <div style="flex:1">
+            <h2 style="margin:0" data-i18n="live_title">Live interpreter</h2>
+            <div class="sub" data-i18n="live_sub">Push‑to‑talk for real conversations (in person).</div>
+          </div>
+          <div class="pill" id="healthPill">—</div>
+        </div>
+
+        <div class="how-panel" data-i18n-html="how_panel_html"></div>
+
+        <div class="lang-box">
+          <div class="lang-row">
+            <div class="lang-left">
+              <span class="lang-label" data-i18n="i_speak">I speak:</span>
+              <span id="speakLangLabel" class="small">—</span>
+            </div>
+            <div class="lang-right">
+              <select id="speakLang" aria-label="Speaker language"></select>
+              <input id="speakLangOther" class="other-input" type="text" data-i18n-placeholder="type_language" placeholder="Type language…" hidden />
+            </div>
+          </div>
+
+          <div class="lang-row">
+            <div class="lang-left">
+              <span class="lang-label" data-i18n="they_hear">They hear:</span>
+              <span id="hearLangLabel" class="small">—</span>
+            </div>
+            <div class="lang-right">
+              <select id="hearLang" aria-label="Listener language"></select>
+              <input id="hearLangOther" class="other-input" type="text" data-i18n-placeholder="type_language" placeholder="Type language…" hidden />
+            </div>
+          </div>
+        </div>
+
+        <div class="center" style="gap:12px">
+          <!-- Microphone selector (Live) -->
+          <div class="mic-picker" aria-label="Microphone selector">
+            <span class="small mic-label" data-i18n="microphone">Microphone</span>
+            <select id="micSelectLive" aria-label="Microphone"></select>
+          </div>
+
+          <button id="pttBtn" class="ptt-btn" aria-label="Hold to talk">
+            <svg class="mic-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Z" stroke="rgba(226,232,240,0.92)" stroke-width="1.7"/>
+              <path d="M19 11a7 7 0 0 1-14 0" stroke="rgba(226,232,240,0.92)" stroke-width="1.7" stroke-linecap="round"/>
+              <path d="M12 18v3" stroke="rgba(226,232,240,0.92)" stroke-width="1.7" stroke-linecap="round"/>
+              <path d="M8 21h8" stroke="rgba(226,232,240,0.92)" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+            <div class="ptt-text" data-i18n="hold_to_talk">Hold to talk</div>
+          </button>
+
+          <!-- VU meter (Live) -->
+          <div class="vu" aria-hidden="true">
+            <div id="vuLive" class="vu-fill"></div>
+          </div>
+
+          <!-- Main status area under the main button -->
+          <div id="status" class="status" data-i18n="ready">Ready.</div>
+
+          <!-- Permission retry actions (shown only when needed) -->
+          <div id="livePermActions" class="row" style="justify-content:center;gap:10px;margin-top:6px" hidden>
+            <button id="retryMicLive" class="btn secondary" type="button" data-i18n="retry_mic">Retry microphone permission</button>
+          </div>
+
+          <audio id="player" class="player" controls hidden></audio>
+
+          <div class="output">
+            <div class="small" data-i18n="you_said">You said</div>
+            <div id="liveTranscript" class="output-text">—</div>
+            <div class="small" style="margin-top:10px" data-i18n="translation">Translation</div>
+            <div id="liveTranslated" class="output-text">—</div>
+          </div>
+
+          <div class="row" style="width:min(640px,100%);justify-content:center;margin-top:14px">
+            <button id="togglePlay" class="btn secondary" type="button">—</button>
+          </div>
+
+          <div class="hint" data-i18n-html="live_hint_html">
+            Need to translate an audio file? → <a href="#files" data-goto="files">Files</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ONLINE CALL -->
+    <section id="view-call" class="view">
+      <div class="card">
+        <div class="row" style="align-items:flex-start;gap:12px">
+          <div style="flex:1">
+            <h2 style="margin:0" data-i18n="call_title">Online Call</h2>
+            <div class="sub" data-i18n="call_sub">Two participants · WebRTC video + live translated captions (push‑to‑talk).</div>
+          </div>
+          <div class="pill" id="callStatus">—</div>
+        </div>
+
+        <div class="call-grid">
+          <div class="call-panel">
+            <div class="small" data-i18n="room">Room</div>
+            <div class="row" style="margin-top:10px">
+              <input id="callRoom" class="text-input" type="text" data-i18n-placeholder="room_placeholder" placeholder="vox-1234" />
+              <button id="callJoin" class="btn" type="button" data-i18n="join">Join</button>
+            </div>
+
+            <div class="small" style="margin-top:10px" data-i18n="paste_invite_link">Paste invite link</div>
+            <input id="pasteInvite" class="text-input" type="text" data-i18n-placeholder="paste_invite_placeholder" placeholder="Paste invite link" />
+
+            <div class="row" style="margin-top:10px">
+              <button id="callNew" class="btn secondary" type="button" data-i18n="new_room">New room</button>
+              <button id="callCopyLink" class="btn secondary" type="button" data-i18n="copy_link">Copy link</button>
+            </div>
+
+            <!-- Invite preview (what you should send to the other person) -->
+            <div class="small" style="margin-top:10px" data-i18n="invite_preview">Invite link / code</div>
+            <input id="invitePreview" class="text-input" type="text" readonly />
+            <div id="invitePreviewNote" class="small" style="margin-top:6px">—</div>
+
+            <div class="small" style="margin-top:10px" data-i18n="call_room_note">
+              Share the link with the other person. The call stays active until you end it.
+            </div>
+          </div>
+
+          <div class="call-panel">
+            <div class="small" data-i18n="call_languages">Languages</div>
+
+            <div class="lang-row" style="margin-top:10px">
+              <div class="lang-left">
+                <span class="lang-label" data-i18n="i_speak">I speak:</span>
+                <span id="callSpeakLabel" class="small">—</span>
+              </div>
+              <div class="lang-right">
+                <select id="callSpeakLang" aria-label="My speaking language"></select>
+                <input id="callSpeakOther" class="other-input" type="text" data-i18n-placeholder="type_language" placeholder="Type language…" hidden />
+              </div>
+            </div>
+
+            <div class="lang-row">
+              <div class="lang-left">
+                <span class="lang-label" data-i18n="they_hear">They hear:</span>
+                <span id="callOutLabel" class="small">—</span>
+              </div>
+              <div class="lang-right">
+                <select id="callOutLang" aria-label="Outgoing translation language"></select>
+                <input id="callOutOther" class="other-input" type="text" data-i18n-placeholder="type_language" placeholder="Type language…" hidden />
+              </div>
+            </div>
+
+            <div class="lang-row">
+              <div class="lang-left">
+                <span class="lang-label" data-i18n="i_hear">I hear:</span>
+                <span id="callInLabel" class="small">—</span>
+              </div>
+              <div class="lang-right">
+                <select id="callInLang" aria-label="Incoming preference language"></select>
+                <input id="callInOther" class="other-input" type="text" data-i18n-placeholder="type_language" placeholder="Type language…" hidden />
+              </div>
+            </div>
+
+            <div class="row" style="margin-top:10px;align-items:center">
+              <label class="check">
+                <input id="callCaptionsOn" type="checkbox" checked />
+                <span data-i18n="captions">Captions</span>
+              </label>
+              <label class="check">
+                <input id="callShowMyCaptions" type="checkbox" />
+                <span data-i18n="show_my_captions">Show mine</span>
+              </label>
+            </div>
+
+            <div class="small" id="remotePrefs" style="margin-top:8px">—</div>
+          </div>
+        </div>
+
+        <!-- Video (WebRTC) -->
+        <div class="video-grid" style="margin-top:16px">
+          <div class="video-tile">
+            <div class="video-label" data-i18n="video_you">You</div>
+            <video id="selfVideo" class="video" autoplay muted playsinline></video>
+            <div id="selfCaption" class="caption hidden" aria-live="polite"></div>
+          </div>
+          <div class="video-tile">
+            <div class="video-label" data-i18n="video_partner">Partner</div>
+            <video id="remoteVideo" class="video" autoplay playsinline></video>
+            <div id="remoteCaption" class="caption hidden" aria-live="polite"></div>
+          </div>
+        </div>
+
+        <div class="center" style="margin-top:16px">
+          <div class="row" style="width:min(720px,100%);justify-content:center;gap:12px;flex-wrap:wrap">
+            <!-- Microphone selector (Call) -->
+            <div class="mic-picker" aria-label="Microphone selector">
+              <span class="small mic-label" data-i18n="microphone">Microphone</span>
+              <select id="micSelectCall" aria-label="Microphone"></select>
+            </div>
+
+            <!-- Camera selector (Call) -->
+            <div class="mic-picker" aria-label="Camera selector">
+              <span class="small mic-label" data-i18n="camera">Camera</span>
+              <select id="camSelectCall" aria-label="Camera"></select>
+            </div>
+
+            <button id="camToggle" class="btn secondary" type="button">—</button>
+          </div>
+
+          <button id="callPttBtn" class="ptt-btn" aria-label="Hold to talk in call" disabled>
+            <svg class="mic-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              <path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Z" stroke="rgba(226,232,240,0.92)" stroke-width="1.7"/>
+              <path d="M19 11a7 7 0 0 1-14 0" stroke="rgba(226,232,240,0.92)" stroke-width="1.7" stroke-linecap="round"/>
+              <path d="M12 18v3" stroke="rgba(226,232,240,0.92)" stroke-width="1.7" stroke-linecap="round"/>
+              <path d="M8 21h8" stroke="rgba(226,232,240,0.92)" stroke-width="1.7" stroke-linecap="round"/>
+            </svg>
+            <div class="ptt-text" data-i18n="hold_to_talk_call">Hold to talk</div>
+          </button>
+
+          <!-- VU meter (Call) -->
+          <div class="vu" aria-hidden="true">
+            <div id="vuCall" class="vu-fill"></div>
+          </div>
+
+          <!-- Main status area under the call button -->
+          <div id="callMainStatus" class="status">—</div>
+
+          <!-- Permission retry actions (shown only when needed) -->
+          <div id="callPermActions" class="row" style="justify-content:center;gap:10px;margin-top:6px;flex-wrap:wrap" hidden>
+            <button id="retryMicCall" class="btn secondary" type="button" data-i18n="retry_mic">Retry microphone permission</button>
+            <button id="retryCamCall" class="btn secondary" type="button" data-i18n="retry_cam">Retry camera permission</button>
+          </div>
+
+          <div class="row" style="width:min(680px,100%);justify-content:center;margin-top:14px">
+            <button id="callEndBtn" class="btn danger" type="button" data-i18n="call_end">End call</button>
+          </div>
+
+          <div class="log" id="callLog"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FILES -->
+    <section id="view-files" class="view">
+      <div class="card">
+        <div class="row" style="align-items:center">
+          <h2 style="margin:0" data-i18n="files_title">Audio file translation</h2>
+          <div class="small" style="text-align:right" data-i18n="files_sub">Upload → Translate → MP3</div>
+        </div>
+
+        <div style="margin-top:14px">
+          <label class="small" data-i18n="audio_file">Audio file</label>
+          <input id="fileInput" type="file" accept="audio/*" />
+        </div>
+
+        <div class="row" style="margin-top:12px;align-items:flex-end">
+          <div style="flex:1">
+            <label class="small" data-i18n="target_language">Target language</label>
+            <select id="fileTarget" aria-label="Target language for file"></select>
+            <input id="fileTargetOther" class="other-input" type="text" data-i18n-placeholder="type_language" placeholder="Type language…" hidden />
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:10px">
+            <button id="fileTranslateBtn" class="btn" type="button" data-i18n="translate">Translate</button>
+            <button id="fileDownload" class="btn secondary" type="button" disabled data-i18n="download">⬇ Download</button>
+            <button id="fileShare" class="btn secondary" type="button" disabled data-i18n="share">📤 Share</button>
+          </div>
+        </div>
+
+        <div id="fileStatus" class="status" style="margin-top:12px" data-i18n="ready">Ready.</div>
+        <audio id="filePlayer" class="player" controls hidden></audio>
+
+        <div class="output">
+          <div class="small" data-i18n="transcript">Transcript</div>
+          <div id="fileTranscript" class="output-text">—</div>
+          <div class="small" style="margin-top:10px" data-i18n="translation">Translation</div>
+          <div id="fileTranslated" class="output-text">—</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HISTORY -->
+    <section id="view-history" class="view">
+      <div class="card">
+        <div class="row" style="align-items:center">
+          <h2 style="margin:0" data-i18n="history_title">History</h2>
+          <div class="small" style="text-align:right" data-i18n="history_sub">Saved MP3s you can download/share</div>
+        </div>
+        <audio id="historyPlayer" class="player" controls hidden></audio>
+        <div id="historyList" class="list"></div>
+      </div>
+    </section>
+
+    <!-- SETTINGS -->
+    <section id="view-account" class="view">
+      <div class="card">
+        <h2 style="margin-top:0" data-i18n="settings_title">Settings</h2>
+        <div class="sub" data-i18n="settings_sub">Sign-in, account and app preferences.</div>
+
+        <div class="row" style="margin-top:14px;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div>
+            <div class="small" data-i18n="signed_in_as">Signed in as</div>
+            <div id="userEmail" class="sub" style="margin-top:6px">—</div>
+          </div>
+          <button id="logoutBtn" class="btn danger" type="button" data-i18n="logout">Logout</button>
+        </div>
+
+        <div style="margin-top:16px" class="small" data-i18n="languages_note">
+          Translation supports any language you can type. Choose from the list or select “Other…” to type a language name/code.
+        </div>
+
+        <!-- Debug / self-test -->
+        <div class="row" style="margin-top:14px;align-items:center">
+          <label class="check">
+            <input id="debugSaveRecording" type="checkbox" />
+            <span data-i18n="debug_save_recording">Save last recording (debug)</span>
+          </label>
+        </div>
+        <div class="small" style="margin-top:6px" data-i18n="debug_save_note">
+          When enabled, the last recorded audio is saved to /media/last_recording.*
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="/static/app/app.js"></script>
+</body>
+</html>

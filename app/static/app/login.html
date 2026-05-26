@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VoxBridge</title>
+  <link rel="icon" href="/static/app/assets/favicon.svg" />
+  <link rel="stylesheet" href="/static/app/app.css" />
+</head>
+
+<body>
+  <header class="topbar">
+    <a class="brand" href="/login" aria-label="VoxBridge">
+      <img class="logo" src="/static/app/assets/logo.svg" alt="VoxBridge logo" />
+      <div class="brand-stack">
+        <div class="brand-text">Vox<span class="neon">Bridge</span></div>
+        <div class="brand-tagline" id="brandTagline">—</div>
+      </div>
+    </a>
+
+    <div class="topbar-right">
+      <div class="ui-lang">
+        <span class="tiny" id="uiLangLabel">UI language</span>
+        <select id="uiLang" aria-label="Application language">
+          <option value="el">Ελληνικά</option>
+          <option value="en">English</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <div class="rule"></div>
+
+  <main class="container">
+    <section class="view active">
+      <div class="card" style="max-width:520px;margin:0 auto;">
+        <h2 style="margin-top:0" id="loginTitle">—</h2>
+        <div class="sub" id="loginSub">—</div>
+
+        <div style="margin-top:16px">
+          <label class="small" id="emailLabel">—</label>
+          <input id="email" class="text-input" type="email" autocomplete="email" placeholder="name@example.com" />
+        </div>
+
+        <div style="margin-top:12px">
+          <label class="small" id="passwordLabel">—</label>
+          <input id="password" class="text-input" type="password" autocomplete="current-password" placeholder="••••••••" />
+        </div>
+
+        <div class="row" style="margin-top:14px;gap:10px;flex-wrap:wrap">
+          <button id="btnLogin" class="btn" type="button">—</button>
+          <button id="btnRegister" class="btn secondary" type="button">—</button>
+          <a id="btnGoogle" class="btn secondary" href="#" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center">—</a>
+        </div>
+
+        <div id="loginStatus" class="status" style="margin-top:12px">—</div>
+
+        <div class="small" id="loginNote" style="margin-top:10px;opacity:0.85">—</div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app/login.js"></script>
+</body>
+</html>

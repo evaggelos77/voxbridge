@@ -1,0 +1,454 @@
+{
+  "languages": [
+    {
+      "code": "en",
+      "en": "English",
+      "el": "Αγγλικά"
+    },
+    {
+      "code": "el",
+      "en": "Greek",
+      "el": "Ελληνικά"
+    },
+    {
+      "code": "zh",
+      "en": "Chinese",
+      "el": "Κινέζικα"
+    },
+    {
+      "code": "zh-Hans",
+      "en": "Chinese (Simplified)",
+      "el": "Κινέζικα (Απλοποιημένα)"
+    },
+    {
+      "code": "zh-Hant",
+      "en": "Chinese (Traditional)",
+      "el": "Κινέζικα (Παραδοσιακά)"
+    },
+    {
+      "code": "ar",
+      "en": "Arabic",
+      "el": "Αραβικά"
+    },
+    {
+      "code": "fr",
+      "en": "French",
+      "el": "Γαλλικά"
+    },
+    {
+      "code": "de",
+      "en": "German",
+      "el": "Γερμανικά"
+    },
+    {
+      "code": "es",
+      "en": "Spanish",
+      "el": "Ισπανικά"
+    },
+    {
+      "code": "it",
+      "en": "Italian",
+      "el": "Ιταλικά"
+    },
+    {
+      "code": "pt",
+      "en": "Portuguese",
+      "el": "Πορτογαλικά"
+    },
+    {
+      "code": "pt-BR",
+      "en": "Portuguese (Brazil)",
+      "el": "Πορτογαλικά (Βραζιλίας)"
+    },
+    {
+      "code": "ru",
+      "en": "Russian",
+      "el": "Ρωσικά"
+    },
+    {
+      "code": "uk",
+      "en": "Ukrainian",
+      "el": "Ουκρανικά"
+    },
+    {
+      "code": "tr",
+      "en": "Turkish",
+      "el": "Τουρκικά"
+    },
+    {
+      "code": "nl",
+      "en": "Dutch",
+      "el": "Ολλανδικά"
+    },
+    {
+      "code": "sv",
+      "en": "Swedish",
+      "el": "Σουηδικά"
+    },
+    {
+      "code": "no",
+      "en": "Norwegian",
+      "el": "Νορβηγικά"
+    },
+    {
+      "code": "da",
+      "en": "Danish",
+      "el": "Δανικά"
+    },
+    {
+      "code": "fi",
+      "en": "Finnish",
+      "el": "Φινλανδικά"
+    },
+    {
+      "code": "pl",
+      "en": "Polish",
+      "el": "Πολωνικά"
+    },
+    {
+      "code": "cs",
+      "en": "Czech",
+      "el": "Τσέχικα"
+    },
+    {
+      "code": "sk",
+      "en": "Slovak",
+      "el": "Σλοβακικά"
+    },
+    {
+      "code": "hu",
+      "en": "Hungarian",
+      "el": "Ουγγρικά"
+    },
+    {
+      "code": "ro",
+      "en": "Romanian",
+      "el": "Ρουμανικά"
+    },
+    {
+      "code": "bg",
+      "en": "Bulgarian",
+      "el": "Βουλγαρικά"
+    },
+    {
+      "code": "sr",
+      "en": "Serbian",
+      "el": "Σερβικά"
+    },
+    {
+      "code": "hr",
+      "en": "Croatian",
+      "el": "Κροατικά"
+    },
+    {
+      "code": "sl",
+      "en": "Slovenian",
+      "el": "Σλοβενικά"
+    },
+    {
+      "code": "mk",
+      "en": "Macedonian",
+      "el": "Σλαβομακεδονικά"
+    },
+    {
+      "code": "sq",
+      "en": "Albanian",
+      "el": "Αλβανικά"
+    },
+    {
+      "code": "he",
+      "en": "Hebrew",
+      "el": "Εβραϊκά"
+    },
+    {
+      "code": "fa",
+      "en": "Persian",
+      "el": "Περσικά"
+    },
+    {
+      "code": "ur",
+      "en": "Urdu",
+      "el": "Ουρντού"
+    },
+    {
+      "code": "hi",
+      "en": "Hindi",
+      "el": "Χίντι"
+    },
+    {
+      "code": "bn",
+      "en": "Bengali",
+      "el": "Μπενγκάλι"
+    },
+    {
+      "code": "pa",
+      "en": "Punjabi",
+      "el": "Παντζάμπι"
+    },
+    {
+      "code": "gu",
+      "en": "Gujarati",
+      "el": "Γκουτζαράτι"
+    },
+    {
+      "code": "mr",
+      "en": "Marathi",
+      "el": "Μαράθι"
+    },
+    {
+      "code": "ta",
+      "en": "Tamil",
+      "el": "Ταμίλ"
+    },
+    {
+      "code": "te",
+      "en": "Telugu",
+      "el": "Τελούγκου"
+    },
+    {
+      "code": "kn",
+      "en": "Kannada",
+      "el": "Κανάντα"
+    },
+    {
+      "code": "ml",
+      "en": "Malayalam",
+      "el": "Μαλαγιαλάμ"
+    },
+    {
+      "code": "si",
+      "en": "Sinhala",
+      "el": "Σινχάλα"
+    },
+    {
+      "code": "ne",
+      "en": "Nepali",
+      "el": "Νεπάλι"
+    },
+    {
+      "code": "th",
+      "en": "Thai",
+      "el": "Ταϊλανδικά"
+    },
+    {
+      "code": "vi",
+      "en": "Vietnamese",
+      "el": "Βιετναμέζικα"
+    },
+    {
+      "code": "id",
+      "en": "Indonesian",
+      "el": "Ινδονησιακά"
+    },
+    {
+      "code": "ms",
+      "en": "Malay",
+      "el": "Μαλαισιανά"
+    },
+    {
+      "code": "tl",
+      "en": "Filipino (Tagalog)",
+      "el": "Φιλιππινέζικα (Ταγκάλογκ)"
+    },
+    {
+      "code": "ja",
+      "en": "Japanese",
+      "el": "Ιαπωνικά"
+    },
+    {
+      "code": "ko",
+      "en": "Korean",
+      "el": "Κορεάτικα"
+    },
+    {
+      "code": "ca",
+      "en": "Catalan",
+      "el": "Καταλανικά"
+    },
+    {
+      "code": "eu",
+      "en": "Basque",
+      "el": "Βασκικά"
+    },
+    {
+      "code": "gl",
+      "en": "Galician",
+      "el": "Γαλικιανά"
+    },
+    {
+      "code": "is",
+      "en": "Icelandic",
+      "el": "Ισλανδικά"
+    },
+    {
+      "code": "ga",
+      "en": "Irish",
+      "el": "Ιρλανδικά"
+    },
+    {
+      "code": "cy",
+      "en": "Welsh",
+      "el": "Ουαλικά"
+    },
+    {
+      "code": "et",
+      "en": "Estonian",
+      "el": "Εσθονικά"
+    },
+    {
+      "code": "lv",
+      "en": "Latvian",
+      "el": "Λετονικά"
+    },
+    {
+      "code": "lt",
+      "en": "Lithuanian",
+      "el": "Λιθουανικά"
+    },
+    {
+      "code": "mt",
+      "en": "Maltese",
+      "el": "Μαλτέζικα"
+    },
+    {
+      "code": "hy",
+      "en": "Armenian",
+      "el": "Αρμενικά"
+    },
+    {
+      "code": "ka",
+      "en": "Georgian",
+      "el": "Γεωργιανά"
+    },
+    {
+      "code": "az",
+      "en": "Azerbaijani",
+      "el": "Αζερικά"
+    },
+    {
+      "code": "kk",
+      "en": "Kazakh",
+      "el": "Καζακικά"
+    },
+    {
+      "code": "uz",
+      "en": "Uzbek",
+      "el": "Ουζμπεκικά"
+    },
+    {
+      "code": "mn",
+      "en": "Mongolian",
+      "el": "Μογγολικά"
+    },
+    {
+      "code": "km",
+      "en": "Khmer",
+      "el": "Χμερ"
+    },
+    {
+      "code": "lo",
+      "en": "Lao",
+      "el": "Λαοτινά"
+    },
+    {
+      "code": "my",
+      "en": "Burmese",
+      "el": "Βιρμανικά"
+    },
+    {
+      "code": "am",
+      "en": "Amharic",
+      "el": "Αμχαρικά"
+    },
+    {
+      "code": "sw",
+      "en": "Swahili",
+      "el": "Σουαχίλι"
+    },
+    {
+      "code": "zu",
+      "en": "Zulu",
+      "el": "Ζουλού"
+    },
+    {
+      "code": "xh",
+      "en": "Xhosa",
+      "el": "Κόσα"
+    },
+    {
+      "code": "af",
+      "en": "Afrikaans",
+      "el": "Αφρικάανς"
+    },
+    {
+      "code": "so",
+      "en": "Somali",
+      "el": "Σομαλικά"
+    },
+    {
+      "code": "ha",
+      "en": "Hausa",
+      "el": "Χάουσα"
+    },
+    {
+      "code": "yo",
+      "en": "Yoruba",
+      "el": "Γιορούμπα"
+    },
+    {
+      "code": "ig",
+      "en": "Igbo",
+      "el": "Ίγκμπο"
+    },
+    {
+      "code": "rw",
+      "en": "Kinyarwanda",
+      "el": "Κινιαρβάντα"
+    },
+    {
+      "code": "sn",
+      "en": "Shona",
+      "el": "Σόνα"
+    },
+    {
+      "code": "st",
+      "en": "Sesotho",
+      "el": "Σεσόθο"
+    },
+    {
+      "code": "ny",
+      "en": "Chichewa",
+      "el": "Τσιτσέουα"
+    },
+    {
+      "code": "mg",
+      "en": "Malagasy",
+      "el": "Μαλαγάσι"
+    },
+    {
+      "code": "ps",
+      "en": "Pashto",
+      "el": "Παστού"
+    },
+    {
+      "code": "sd",
+      "en": "Sindhi",
+      "el": "Σίντι"
+    },
+    {
+      "code": "bo",
+      "en": "Tibetan",
+      "el": "Θιβετιανά"
+    },
+    {
+      "code": "ug",
+      "en": "Uyghur",
+      "el": "Ουιγούρ"
+    },
+    {
+      "code": "yi",
+      "en": "Yiddish",
+      "el": "Γίντις"
+    }
+  ]
+}
