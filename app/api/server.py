@@ -71,6 +71,20 @@ DEFAULT_TARGET_LANG = (os.getenv("DEFAULT_TARGET_LANG", "en") or "en").strip()
 # -------------------------
 FREE_TRIAL_CREDITS = int((os.getenv("FREE_TRIAL_CREDITS", "15") or "15").strip() or "15")
 
+# -------------------------
+# Stripe subscriptions (monthly translation quota)
+# Plans renew a monthly credit allotment. price IDs are NOT secret; the secret key
+# and webhook signing secret are provided via env on the server (never committed).
+# -------------------------
+STRIPE_SECRET_KEY = (os.getenv("STRIPE_SECRET_KEY") or "").strip()
+STRIPE_WEBHOOK_SECRET = (os.getenv("STRIPE_WEBHOOK_SECRET") or "").strip()
+STRIPE_PRICE_BASIC = (os.getenv("STRIPE_PRICE_BASIC", "price_1T06mQQj4Zc93sifvysOXlCu") or "").strip()
+STRIPE_PRICE_PRO = (os.getenv("STRIPE_PRICE_PRO", "price_1T07WzQj4Zc93sifDHQaKVrP") or "").strip()
+STRIPE_PRICE_BASIC_YEAR = (os.getenv("STRIPE_PRICE_BASIC_YEAR") or "").strip()
+STRIPE_PRICE_PRO_YEAR = (os.getenv("STRIPE_PRICE_PRO_YEAR") or "").strip()
+BASIC_MONTHLY_CREDITS = int((os.getenv("BASIC_MONTHLY_CREDITS", "500") or "500").strip() or "500")
+PRO_MONTHLY_CREDITS = int((os.getenv("PRO_MONTHLY_CREDITS", "2000") or "2000").strip() or "2000")
+
 # ---------- Paths ----------
 APP_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 MEDIA_DIR = os.path.join(APP_DIR, "web_media")
@@ -414,16 +428,28 @@ def _init_db() -> None:
               password_hash TEXT,
               google_sub TEXT UNIQUE,
               created_at TEXT NOT NULL,
-              credits INTEGER NOT NULL DEFAULT {FREE_TRIAL_CREDITS}
+              credits INTEGER NOT NULL DEFAULT {FREE_TRIAL_CREDITS},
+              plan TEXT NOT NULL DEFAULT 'free',
+              plan_credits INTEGER NOT NULL DEFAULT 0,
+              credits_period_start TEXT,
+              stripe_customer_id TEXT
             )
             """
         )
-        # Migration: add 'credits' to pre-existing databases that predate this column.
+        # Migrations: add columns to pre-existing databases that predate them.
         _cols = [r[1] for r in con.execute("PRAGMA table_info(users)").fetchall()]
         if "credits" not in _cols:
             con.execute(
                 f"ALTER TABLE users ADD COLUMN credits INTEGER NOT NULL DEFAULT {FREE_TRIAL_CREDITS}"
             )
+        for _c, _ddl in (
+            ("plan", "ALTER TABLE users ADD COLUMN plan TEXT NOT NULL DEFAULT 'free'"),
+            ("plan_credits", "ALTER TABLE users ADD COLUMN plan_credits INTEGER NOT NULL DEFAULT 0"),
+            ("credits_period_start", "ALTER TABLE users ADD COLUMN credits_period_start TEXT"),
+            ("stripe_customer_id", "ALTER TABLE users ADD COLUMN stripe_customer_id TEXT"),
+        ):
+            if _c not in _cols:
+                con.execute(_ddl)
         con.commit()
     finally:
         con.close()
@@ -598,6 +624,94 @@ def _no_credits() -> JSONResponse:
     )
 
 
+def _credits_for_plan(plan: str) -> int:
+    p = (plan or "free").strip().lower()
+    if p == "basic":
+        return BASIC_MONTHLY_CREDITS
+    if p == "pro":
+        return PRO_MONTHLY_CREDITS
+    return 0
+
+
+def _set_plan(user_id: int, plan: str, monthly_credits: int, customer_id: Optional[str] = None) -> None:
+    """Activate/renew a plan: set plan, refill credits to the monthly quota, reset period."""
+    con = _db()
+    try:
+        if customer_id:
+            con.execute(
+                "UPDATE users SET plan=?, plan_credits=?, credits=?, credits_period_start=?, stripe_customer_id=? WHERE id=?",
+                (plan, int(monthly_credits), int(monthly_credits), _now_iso(), str(customer_id), int(user_id)),
+            )
+        else:
+            con.execute(
+                "UPDATE users SET plan=?, plan_credits=?, credits=?, credits_period_start=? WHERE id=?",
+                (plan, int(monthly_credits), int(monthly_credits), _now_iso(), int(user_id)),
+            )
+        con.commit()
+    finally:
+        con.close()
+
+
+def _downgrade_to_free(user_id: int) -> None:
+    con = _db()
+    try:
+        con.execute("UPDATE users SET plan='free', plan_credits=0 WHERE id=?", (int(user_id),))
+        con.commit()
+    finally:
+        con.close()
+
+
+def _user_by_customer(customer_id: str) -> Optional[sqlite3.Row]:
+    if not customer_id:
+        return None
+    con = _db()
+    try:
+        cur = con.execute("SELECT * FROM users WHERE stripe_customer_id=?", (str(customer_id),))
+        return cur.fetchone()
+    finally:
+        con.close()
+
+
+def _maybe_refill(user_row):
+    """Lazy monthly refill: paid plans get their quota back ~every 30 days (no cron needed)."""
+    try:
+        if not user_row:
+            return user_row
+        plan = (user_row["plan"] or "free")
+        if plan == "free":
+            return user_row
+        quota = int(user_row["plan_credits"] or 0)
+        if quota <= 0:
+            return user_row
+        start = user_row["credits_period_start"]
+        needs = False
+        if not start:
+            needs = True
+        else:
+            try:
+                started = datetime.fromisoformat(start)
+                if started.tzinfo is None:
+                    started = started.replace(tzinfo=timezone.utc)
+                if (datetime.now(timezone.utc) - started).days >= 30:
+                    needs = True
+            except Exception:
+                needs = True
+        if needs:
+            con = _db()
+            try:
+                con.execute(
+                    "UPDATE users SET credits=?, credits_period_start=? WHERE id=?",
+                    (quota, _now_iso(), int(user_row["id"])),
+                )
+                con.commit()
+            finally:
+                con.close()
+            return _user_by_id(int(user_row["id"]))
+    except Exception:
+        pass
+    return user_row
+
+
 # -------------------------
 # Session / auth helpers
 # -------------------------
@@ -631,7 +745,13 @@ def api_me(request: Request):
     u = _current_user(request)
     if not u:
         return _auth_required()
-    return {"email": u["email"], "created_at": u["created_at"], "credits": int(u["credits"] or 0)}
+    u = _maybe_refill(u)
+    return {
+        "email": u["email"],
+        "created_at": u["created_at"],
+        "credits": int(u["credits"] or 0),
+        "plan": (u["plan"] or "free"),
+    }
 
 
 @app.get("/api/config")
@@ -856,6 +976,7 @@ async def api_ptt_translate(
     u = _current_user(request)
     if not u:
         return _auth_required()
+    u = _maybe_refill(u)
     if not os.getenv("OPENAI_API_KEY"):
         return _ui_error(status_code=400)
     if int(u["credits"] or 0) <= 0:
@@ -901,6 +1022,7 @@ async def api_call_captions(
     u = _current_user(request)
     if not u:
         return _auth_required()
+    u = _maybe_refill(u)
     if not os.getenv("OPENAI_API_KEY"):
         return _ui_error(status_code=400)
     if int(u["credits"] or 0) <= 0:
@@ -944,6 +1066,7 @@ async def api_file_translate(
     u = _current_user(request)
     if not u:
         return _auth_required()
+    u = _maybe_refill(u)
     if not os.getenv("OPENAI_API_KEY"):
         return _ui_error(status_code=400)
     if int(u["credits"] or 0) <= 0:
@@ -996,6 +1119,114 @@ def api_delete_history(request: Request, item_id: str):
             os.remove(mp3_path)
     except Exception:
         pass
+
+    return {"ok": True}
+
+
+# -------------------------
+# Billing (Stripe subscriptions -> monthly translation quota)
+# -------------------------
+@app.get("/api/billing/info")
+def api_billing_info(request: Request):
+    u = _current_user(request)
+    if not u:
+        return _auth_required()
+    u = _maybe_refill(u)
+    return {
+        "plan": (u["plan"] or "free"),
+        "credits": int(u["credits"] or 0),
+        "configured": bool(STRIPE_SECRET_KEY),
+    }
+
+
+@app.post("/api/billing/checkout")
+def api_billing_checkout(request: Request, plan: str = Form(...), interval: str = Form("month")):
+    u = _current_user(request)
+    if not u:
+        return _auth_required()
+    if not STRIPE_SECRET_KEY:
+        return JSONResponse(status_code=503, content={"error": "Οι πληρωμές δεν έχουν ρυθμιστεί ακόμα."})
+
+    plan = (plan or "").strip().lower()
+    interval = (interval or "month").strip().lower()
+    if plan == "basic":
+        price = STRIPE_PRICE_BASIC_YEAR if (interval == "year" and STRIPE_PRICE_BASIC_YEAR) else STRIPE_PRICE_BASIC
+        credits = BASIC_MONTHLY_CREDITS
+    elif plan == "pro":
+        price = STRIPE_PRICE_PRO_YEAR if (interval == "year" and STRIPE_PRICE_PRO_YEAR) else STRIPE_PRICE_PRO
+        credits = PRO_MONTHLY_CREDITS
+    else:
+        return JSONResponse(status_code=400, content={"error": "Άγνωστο πακέτο."})
+    if not price:
+        return JSONResponse(status_code=400, content={"error": "Λείπει το price id."})
+
+    try:
+        import stripe
+        stripe.api_key = STRIPE_SECRET_KEY
+        base = str(request.base_url).rstrip("/")
+        session = stripe.checkout.Session.create(
+            mode="subscription",
+            line_items=[{"price": price, "quantity": 1}],
+            client_reference_id=str(u["id"]),
+            customer_email=u["email"],
+            metadata={"uid": str(u["id"]), "plan": plan, "credits": str(credits)},
+            subscription_data={"metadata": {"uid": str(u["id"]), "plan": plan, "credits": str(credits)}},
+            success_url=base + "/app?billing=success",
+            cancel_url=base + "/app?billing=cancel",
+            allow_promotion_codes=True,
+        )
+        return {"url": session.url}
+    except Exception:
+        _log_exc("/api/billing/checkout")
+        return JSONResponse(status_code=502, content={"error": "Σφάλμα σύνδεσης με το Stripe."})
+
+
+@app.post("/api/stripe/webhook")
+async def api_stripe_webhook(request: Request):
+    payload = await request.body()
+    sig = request.headers.get("stripe-signature", "")
+    if not STRIPE_WEBHOOK_SECRET:
+        return JSONResponse(status_code=503, content={"error": "webhook not configured"})
+    try:
+        import stripe
+        event = stripe.Webhook.construct_event(payload, sig, STRIPE_WEBHOOK_SECRET)
+    except Exception:
+        return JSONResponse(status_code=400, content={"error": "invalid signature"})
+
+    typ = event.get("type", "")
+    obj = (event.get("data") or {}).get("object") or {}
+
+    try:
+        if typ == "checkout.session.completed":
+            uid = obj.get("client_reference_id") or (obj.get("metadata") or {}).get("uid")
+            customer = obj.get("customer")
+            md = obj.get("metadata") or {}
+            plan = (md.get("plan") or "").strip().lower()
+            try:
+                credits = int(md.get("credits") or 0)
+            except Exception:
+                credits = 0
+            if not plan or plan == "free":
+                plan = "basic"
+            if credits <= 0:
+                credits = _credits_for_plan(plan)
+            if uid:
+                _set_plan(int(uid), plan, credits, customer_id=customer)
+        elif typ == "invoice.paid":
+            customer = obj.get("customer")
+            row = _user_by_customer(customer)
+            if row:
+                plan = (row["plan"] or "free")
+                quota = _credits_for_plan(plan)
+                if quota > 0:
+                    _set_plan(int(row["id"]), plan, quota, customer_id=customer)
+        elif typ == "customer.subscription.deleted":
+            customer = obj.get("customer")
+            row = _user_by_customer(customer)
+            if row:
+                _downgrade_to_free(int(row["id"]))
+    except Exception:
+        _log_exc("/api/stripe/webhook")
 
     return {"ok": True}
 

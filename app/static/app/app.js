@@ -659,6 +659,20 @@ function updateCreditsDisplay(n){
   if(s) s.textContent = String(n);
 }
 
+async function startCheckout(plan){
+  const note = $("#billingNote");
+  try{
+    if(note) note.textContent = "Σύνδεση με Stripe…";
+    const fd = new FormData(); fd.append("plan", plan);
+    const r = await fetch("/api/billing/checkout", {method:"POST", body: fd});
+    const j = await r.json().catch(() => ({}));
+    if(r.ok && j && j.url){ location.href = j.url; return; }
+    if(note) note.textContent = (j && j.error) || "Οι πληρωμές δεν είναι έτοιμες ακόμα.";
+  }catch{
+    if(note) note.textContent = "Σφάλμα σύνδεσης. Δοκίμασε ξανά.";
+  }
+}
+
 // ---------- Languages ----------
 function langDisplay(codeOrName){
   const v = (codeOrName || "").trim();
@@ -2222,6 +2236,12 @@ async function init(){
     const email = (me && me.email) ? String(me.email) : '';
     if($('#userEmail')) $('#userEmail').textContent = email || '—';
     if(me && typeof me.credits === 'number') updateCreditsDisplay(me.credits);
+    if(me && me.plan && $('#planName')){
+      const _pm = {free:"Δωρεάν (δοκιμή)", basic:"Basic", pro:"Pro"};
+      $('#planName').textContent = _pm[me.plan] || me.plan;
+    }
+    $('#buyBasic')?.addEventListener('click', () => startCheckout('basic'));
+    $('#buyPro')?.addEventListener('click', () => startCheckout('pro'));
     if($('#userEmailTop')){
       if(email){
         $('#userEmailTop').textContent = email;

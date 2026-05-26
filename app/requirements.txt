@@ -5,6 +5,7 @@ openai>=1.0.0
 python-dotenv>=1.0.0
 python-multipart>=0.0.9
 itsdangerous>=2.0.0
+stripe>=7,<13
 imageio-ffmpeg>=0.4.9
 requests>=2.31
 sounddevice>=0.4.6
