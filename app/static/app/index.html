@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>VoxBridge</title>
   <link rel="icon" href="/static/app/assets/favicon.svg" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="InterVox" />
   <link rel="stylesheet" href="/static/app/app.css" />
 </head>
 
@@ -26,6 +30,12 @@
           <option value="en">English</option>
         </select>
       </div>
+
+      <button id="installBtn" type="button" hidden title="Install app" aria-label="Install"
+        style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:62px;background:rgba(224,174,66,.14);border:1px solid rgba(224,174,66,.30);color:#F3D28C;border-radius:14px;padding:5px 10px;line-height:1;cursor:pointer">
+        <span style="font-size:18px;font-weight:800">⇩</span>
+        <span style="font-size:10px;font-weight:800;letter-spacing:.4px">Install</span>
+      </button>
 
       <!-- Logged-in user email (visible on every view) -->
       <div id="userEmailTop" class="user-pill" hidden>—</div>
@@ -395,5 +405,25 @@
   <div id="toast" class="toast" hidden></div>
 
   <script src="/static/app/app.js?v=4"></script>
+  <script>
+  (function(){
+    var deferred=null;
+    var standalone=(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)||window.navigator.standalone===true;
+    var btn=document.getElementById('installBtn');
+    function show(){ if(btn&&!standalone) btn.hidden=false; }
+    window.addEventListener('beforeinstallprompt',function(e){ e.preventDefault(); deferred=e; show(); });
+    window.addEventListener('appinstalled',function(){ if(btn) btn.hidden=true; });
+    if(!standalone) show();
+    if(btn) btn.addEventListener('click', async function(){
+      if(deferred){ deferred.prompt(); try{ await deferred.userChoice; }catch(e){} deferred=null; btn.hidden=true; return; }
+      var sel=document.getElementById('uiLang');
+      var en=sel && sel.value==='en';
+      var msg=en
+        ? "📲 Install InterVox like an app:\n\n📱 iPhone (Safari): tap Share (the square with ↑) → «Add to Home Screen».\n🤖 Android (Chrome): menu ⋮ → «Install app».\n💻 Computer (Chrome/Edge): the install icon in the address bar, or menu → «Install app».\n\nYou get an icon and it opens full-screen — like a real app!"
+        : "📲 Εγκατέστησε το InterVox σαν εφαρμογή:\n\n📱 iPhone (Safari): πάτα «Κοινή χρήση» (το τετράγωνο με ↑) → «Προσθήκη στην οθόνη Αφετηρίας».\n🤖 Android (Chrome): μενού ⋮ → «Εγκατάσταση εφαρμογής».\n💻 Υπολογιστής (Chrome/Edge): το εικονίδιο εγκατάστασης στη γραμμή διεύθυνσης, ή μενού → «Εγκατάσταση εφαρμογής».\n\nΘα αποκτήσεις εικονίδιο και ανοίγει σε πλήρη οθόνη — σαν κανονική εφαρμογή!";
+      alert(msg);
+    });
+  })();
+  </script>
 </body>
 </html>
